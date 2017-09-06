@@ -18,8 +18,8 @@ function createTable() {
     console.log("createTable");
     db.serialize( () => {
         db.run(`CREATE TABLE IF NOT EXISTS goodKids (kid_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`);
-        db.run(`CREATE TABLE IF NOT EXISTS toys (toy_id INTEGER PRIMARY KEY AUTOINCREMENT, item TEXT, delivered BOOLEAN)`);
-        db.run(`CREATE TABLE IF NOT EXISTS toyKids (toy_id INT, kid_id)`);
+        db.run(`CREATE TABLE IF NOT EXISTS toys (toy_id INTEGER PRIMARY KEY AUTOINCREMENT, item TEXT)`);
+        db.run(`CREATE TABLE IF NOT EXISTS toyKids (toy_id INT, kid_id, delivered BOOLEAN)`);
         // insertRows();
     });
 };
