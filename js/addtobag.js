@@ -5,6 +5,11 @@ const db = new sqlite3.Database('./data/loot.db');
 
 let kidNames = [];
 let toyNames = [];
+let toysFilled,
+    kidNamesFilled,
+    kidId,
+    toyId;
+
 
 let checkForKids = () => {
     return new Promise( (resolve, reject) => {
@@ -12,8 +17,8 @@ let checkForKids = () => {
             kidNames.push(row.name);
         }, () => {
             resolve(kidNames);
+            reject();
         });
-        console.log("kid names", kidNames)
     });
 };
 
@@ -23,42 +28,67 @@ let checkForToys = () => {
             toyNames.push(row.item);
         }, () => {
             resolve(toyNames);
+            reject();
         });
     });
 };
 
+let insertIntoGoodKids = (name) => {
+    db.get(`SELECT * FROM goodKids`, (err, row) => {
+        if(err) throw err;
+        !row ? db.run(`INSERT INTO goodKids VALUES(null, '${name}')`) : checkForKids()
+            .then( () => {
+                if(kidNames.indexOf(name) === -1) {
+                    db.run(`INSERT INTO goodKids VALUES(null, '${name}')`, () => {
+                        kidNamesFilled = true;
+                    });
+                } else {
+                    kidNamesFilled = true;
+                }
+            });
+    });
+}
 
+let insertIntoToys = (item) => {
+    db.get(`SELECT * FROM toys`, (err, row) => {
+        if(err) throw err;
+        !row ? db.run(`INSERT INTO toys VALUES(null, '${item}')`) : checkForToys()
+            .then( () => {
+                if(toyNames.indexOf(item) === -1) {
+                    db.run(`INSERT INTO toys VALUES(null, '${item}')`, () => {
+                        toysFilled = true;
+                    });
+                } else {
+                    toysFilled = true;
+                }
+            });
+    });
+}
+
+let assignIds = (name, item) => {
+    db.each(`SELECT kid_id FROM goodKids WHERE name = '${name}'`, (err, row) => {
+        kidId = row.kid_id;
+    }, () => {
+        console.log('kidId', kidId); 
+    });
+    db.each(`SELECT toy_id FROM toys WHERE item = '${item}'`, (error, row) => {
+        toyId = row.toy_id;
+    }, () => {
+        console.log('toyId', toyId);
+        db.run(`INSERT INTO toyKids VALUES(${kidId}, '${toyId}', 'false')`)
+    });
+}
 
 let addToBag = (item, name) => {
-    db.serialize( () => {
-        db.get(`SELECT * FROM goodKids`, (err, row) => {
-            if(err) throw err;
-            !row ? db.run(`INSERT INTO goodKids VALUES(null, '${name}')`) : checkForKids()
-                .then( (kidNamez) => {
-                    if(kidNamez.indexOf(name) === -1) {
-                        db.run(`INSERT INTO goodKids VALUES(null, '${name}')`);
-                    };
-                });
-        });
-        db.get(`SELECT * FROM toys`, (err, row) => {
-            if(err) throw err;
-            !row ? db.run(`INSERT INTO toys VALUES(null, '${item}')`) : checkForToys()
-                .then( () => {
-                    if(toyNames.indexOf(item) === -1) {
-                        db.run(`INSERT INTO toys VALUES(null, '${item}')`);
-                    };
-                });
-        });
-        db.each(`SELECT kid_id FROM goodKids WHERE name = '${name}'`, (err, row) => {
-             let kidId = row.kid_id;
-             console.log('kidId', kidId);
-        });
-        db.each(`SELECT toy_id FROM toys WHERE item = '${item}'`, (err, row) => {
-            let toyId = row.toy_id;
-            console.log('toyId', toyId);
-        });
-        // db.run(`INSERT INTO toys VALUES(${row.kid_id}, '${item}', 'false')`);
-    });
+        insertIntoGoodKids(name);
+        insertIntoToys(item);
+        let timeout = setInterval(function() { 
+            console.log(kidNamesFilled, toysFilled)
+            if(kidNamesFilled && toysFilled) { 
+                clearInterval(timeout); 
+                assignIds(name, item);
+            };
+        }, 100);
 };
 
 module.exports = { addToBag };
