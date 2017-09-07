@@ -8,51 +8,46 @@ let toyNames = [];
 
 let checkForKids = () => {
     return new Promise( (resolve, reject) => {
-
-            db.each(`SELECT * FROM goodKids`, (err, row) => {
-                kidNames.push(row.name);
-                console.log("Kid rowss", row.name)
-            });
-            console.log("kid names", kidNames)
-
-        resolve(kidNames);
+        db.each(`SELECT * FROM goodKids`, (err, row) => {
+            kidNames.push(row.name);
+        }, () => {
+            resolve(kidNames);
+        });
+        console.log("kid names", kidNames)
     });
 };
 
-let addToBag = (item, name) => {
-    console.log("item and name?", item, name);
-    db.serialize( () => {
+let checkForToys = () => {
+    return new Promise( (resolve, reject) => {
+        db.each(`SELECT * FROM toys`, (err, row) => {
+            toyNames.push(row.item);
+        }, () => {
+            resolve(toyNames);
+        });
+    });
+};
 
+
+
+let addToBag = (item, name) => {
+    db.serialize( () => {
         db.get(`SELECT * FROM goodKids`, (err, row) => {
             if(err) throw err;
-            if(!row) {
-                console.log("no kid names, inserting row")
-                db.run(`INSERT INTO goodKids VALUES(null, '${name}')`);
-            } else {
-                checkForKids()
+            !row ? db.run(`INSERT INTO goodKids VALUES(null, '${name}')`) : checkForKids()
                 .then( (kidNamez) => {
-                    console.log("kid names", kidNamez, name)
                     if(kidNamez.indexOf(name) === -1) {
-                        console.log("kid does not exist");
                         db.run(`INSERT INTO goodKids VALUES(null, '${name}')`);
                     };
                 });
-            };
         });
         db.get(`SELECT * FROM toys`, (err, row) => {
             if(err) throw err;
-            if(!row) {
-                console.log("no toys, inserting row")
-                db.run(`INSERT INTO toys VALUES(null, '${item}')`);
-            } else {
-                db.each(`SELECT * FROM toys`, (err, row) => {
-                    toyNames.push(row.item);
+            !row ? db.run(`INSERT INTO toys VALUES(null, '${item}')`) : checkForToys()
+                .then( () => {
                     if(toyNames.indexOf(item) === -1) {
-                        console.log("toy does not exist");
                         db.run(`INSERT INTO toys VALUES(null, '${item}')`);
                     };
                 });
-            };
         });
         db.each(`SELECT kid_id FROM goodKids WHERE name = '${name}'`, (err, row) => {
              let kidId = row.kid_id;
